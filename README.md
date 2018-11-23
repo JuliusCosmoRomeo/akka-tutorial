@@ -14,3 +14,6 @@ Just run the main class `de.hpi.akka_tutorial.Main` or `de.hpi.octopus.OctopusAp
 * Parameters to start a master with two local workers: `master --workers 2`
 * Parameters to start a slave that tries to connect to a remote master: `slave --master <master host>:<master port>`
 
+```mvn package```
+
+e.g. ```java -jar octopus-1.0.jar master -w 2 -h localhost```
