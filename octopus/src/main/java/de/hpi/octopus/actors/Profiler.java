@@ -50,10 +50,34 @@ public class Profiler extends AbstractActor {
 	public static class PWCrackingTaskMessage extends TaskMessage implements Serializable {
 		private static final long serialVersionUID = -7330958742629706627L;
 		public PWCrackingTaskMessage() {}
-		private ArrayList<Integer> pws;
+		private ArrayList<String> pws;
 	}
 
-	@Data @AllArgsConstructor @SuppressWarnings("unused")
+
+    @Data @AllArgsConstructor @SuppressWarnings("unused")
+    public static class GeneTaskMessage extends TaskMessage implements Serializable {
+        private static final long serialVersionUID = -6330958742629706627L;
+        public GeneTaskMessage() {}
+        private ArrayList<String> genes;
+    }
+
+    @Data @AllArgsConstructor @SuppressWarnings("unused")
+    public static class LinCombTaskMessage extends TaskMessage implements Serializable {
+        private static final long serialVersionUID = -5330958742629706627L;
+        public LinCombTaskMessage() {}
+        private ArrayList<String> pws;
+    }
+
+    @Data @AllArgsConstructor @SuppressWarnings("unused")
+    public static class HashingTaskMessage extends TaskMessage implements Serializable {
+        private static final long serialVersionUID = -4330958742629706627L;
+        public HashingTaskMessage() {}
+        private ArrayList<String> prefixes;
+        private ArrayList<String> partners;
+    }
+
+
+    @Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class CompletionMessage implements Serializable {
 		private static final long serialVersionUID = -6823011111281387872L;
 		public enum status {MINIMAL, EXTENDABLE, FALSE, FAILED}
