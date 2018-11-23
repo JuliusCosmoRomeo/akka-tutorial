@@ -95,6 +95,8 @@ public class Worker extends AbstractActor {
 	}
 
 	private void handle(WorkMessage message) {
+
+		this.log.info("message: " + message.x + " " + message.y);
 		long y = 0;
 		for (int i = 0; i < 1000000; i++)
 			if (this.isPrime(i))
@@ -121,5 +123,11 @@ public class Worker extends AbstractActor {
 				return false;
 		
 		return true;
+	}
+
+
+	private void crackPW(String hash){
+		//TODO: pass
+
 	}
 }

@@ -44,7 +44,14 @@ public class Profiler extends AbstractActor {
 		private TaskMessage() {}
 		private int attributes;
 	}
-	
+
+	/*@Data @AllArgsConstructor @SuppressWarnings("unused")
+	public static class PWCrackingTaskMessage implements Serializable {
+		private static final long serialVersionUID = -8330958742629706627L;
+		public PWCrackingTaskMessage() {}
+		private ArrayList<String> pws;
+	}*/
+
 	@Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class CompletionMessage implements Serializable {
 		private static final long serialVersionUID = -6823011111281387872L;
@@ -64,6 +71,7 @@ public class Profiler extends AbstractActor {
 	private final Map<ActorRef, WorkMessage> busyWorkers = new HashMap<>();
 
 	private TaskMessage task;
+
 
 	////////////////////
 	// Actor Behavior //
@@ -110,6 +118,10 @@ public class Profiler extends AbstractActor {
 	private void handle(CompletionMessage message) {
 		ActorRef worker = this.sender();
 		WorkMessage work = this.busyWorkers.remove(worker);
+
+		//TODO: switch CompletionMessage instance of (class name)
+		//if task done => next task
+		//multiple tasks at the same time?
 
 		this.log.info("Completed: [{},{}]", Arrays.toString(work.getX()), Arrays.toString(work.getY()));
 		
@@ -159,12 +171,16 @@ public class Profiler extends AbstractActor {
 		this.log.info("UCC: {}", Arrays.toString(work.getX()));
 	}
 
+
+	//TODO: this is not needed
 	private void split(WorkMessage work) {
 		int[] x = work.getX();
 		int[] y = work.getY();
-		
+
+
 		int next = x.length + y.length;
-		
+		log.info(x.length + " " + y.length + " " + this.task.getAttributes());
+
 		if (next < this.task.getAttributes() - 1) {
 			int[] xNew = Arrays.copyOf(x, x.length + 1);
 			xNew[x.length] = next;

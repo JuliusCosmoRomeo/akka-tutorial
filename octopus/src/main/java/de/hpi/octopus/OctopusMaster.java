@@ -1,7 +1,8 @@
 package de.hpi.octopus;
 
 import java.util.Scanner;
-
+import java.util.*;
+import java.io.*;
 import com.typesafe.config.Config;
 
 import akka.actor.ActorRef;
@@ -41,13 +42,49 @@ public class OctopusMaster extends OctopusSystem {
 			//		.props(Props.create(Worker.class)), "router");
 			}
 		});
-		
-		final Scanner scanner = new Scanner(System.in);
-		String line = scanner.nextLine();
-		scanner.close();
-		
-		int attributes = Integer.parseInt(line);
-		
-		system.actorSelection("/user/" + Profiler.DEFAULT_NAME).tell(new Profiler.TaskMessage(attributes), ActorRef.noSender());
+
+        ArrayList<Integer> ids = new ArrayList<>();
+        ArrayList<String> names = new ArrayList<>();
+        ArrayList<String> pwhashes = new ArrayList<>();
+        ArrayList<String> genes = new ArrayList<>();
+
+
+        //parse input csv file
+        try {
+            final Scanner scanner = new Scanner(new File("../data/students.csv"));
+            scanner.useDelimiter(";|\n");
+
+            //skip header
+            scanner.nextLine();
+
+            int argCount = 0;
+            while(scanner.hasNext()){
+                String next = scanner.next();
+                System.out.println("Next " + next);
+                switch(argCount%4){
+                    case 0:
+                        ids.add(Integer.parseInt(next));
+                        break;
+                    case 1:
+                        names.add(next);
+                        break;
+                    case 2:
+                        pwhashes.add(next);
+                        break;
+                    case 3:
+                        genes.add(next);
+                        break;
+                }
+
+                argCount++;
+            }
+            scanner.close();
+            //int attributes = Integer.parseInt(line);
+
+            system.actorSelection("/user/" + Profiler.DEFAULT_NAME).tell(new Profiler.TaskMessage(300), ActorRef.noSender());
+        } catch (FileNotFoundException e){
+            System.out.println("File not found exception");
+        }
+
 	}
 }
