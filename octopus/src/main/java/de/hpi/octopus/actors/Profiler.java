@@ -2,6 +2,7 @@ package de.hpi.octopus.actors;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -45,12 +46,12 @@ public class Profiler extends AbstractActor {
 		private int attributes;
 	}
 
-	/*@Data @AllArgsConstructor @SuppressWarnings("unused")
-	public static class PWCrackingTaskMessage implements Serializable {
-		private static final long serialVersionUID = -8330958742629706627L;
+	@Data @AllArgsConstructor @SuppressWarnings("unused")
+	public static class PWCrackingTaskMessage extends TaskMessage implements Serializable {
+		private static final long serialVersionUID = -7330958742629706627L;
 		public PWCrackingTaskMessage() {}
-		private ArrayList<String> pws;
-	}*/
+		private ArrayList<Integer> pws;
+	}
 
 	@Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class CompletionMessage implements Serializable {
@@ -70,7 +71,8 @@ public class Profiler extends AbstractActor {
 	private final Queue<ActorRef> idleWorkers = new LinkedList<>();
 	private final Map<ActorRef, WorkMessage> busyWorkers = new HashMap<>();
 
-	private TaskMessage task;
+	private TaskMessage task1;
+    private TaskMessage task2;
 
 
 	////////////////////
@@ -108,11 +110,16 @@ public class Profiler extends AbstractActor {
 	}
 	
 	private void handle(TaskMessage message) {
-		if (this.task != null)
+		if (this.task1==null){
+            this.task1 = message;
+            this.assign(new WorkMessage(new int[0], new int[0]));
+        } else if (this.task2==null){
+            this.task2 = message;
+            this.assign(new WorkMessage(new int[0], new int[0]));
+        }
+	    if (this.task1 != null && this.task2 != null)
 			this.log.error("The profiler actor can process only one task in its current implementation!");
-		
-		this.task = message;
-		this.assign(new WorkMessage(new int[0], new int[0]));
+
 	}
 	
 	private void handle(CompletionMessage message) {
@@ -121,7 +128,7 @@ public class Profiler extends AbstractActor {
 
 		//TODO: switch CompletionMessage instance of (class name)
 		//if task done => next task
-		//multiple tasks at the same time?
+
 
 		this.log.info("Completed: [{},{}]", Arrays.toString(work.getX()), Arrays.toString(work.getY()));
 		
@@ -179,9 +186,9 @@ public class Profiler extends AbstractActor {
 
 
 		int next = x.length + y.length;
-		log.info(x.length + " " + y.length + " " + this.task.getAttributes());
+		log.info(x.length + " " + y.length + " " + this.task1.getAttributes());
 
-		if (next < this.task.getAttributes() - 1) {
+		if (next < this.task1.getAttributes() - 1) {
 			int[] xNew = Arrays.copyOf(x, x.length + 1);
 			xNew[x.length] = next;
 			this.assign(new WorkMessage(xNew, y));

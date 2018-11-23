@@ -81,6 +81,7 @@ public class OctopusMaster extends OctopusSystem {
             scanner.close();
             //int attributes = Integer.parseInt(line);
 
+            system.actorSelection("/user/" + Profiler.DEFAULT_NAME).tell(new Profiler.PWCrackingTaskMessage(ids), ActorRef.noSender());
             system.actorSelection("/user/" + Profiler.DEFAULT_NAME).tell(new Profiler.TaskMessage(300), ActorRef.noSender());
         } catch (FileNotFoundException e){
             System.out.println("File not found exception");
