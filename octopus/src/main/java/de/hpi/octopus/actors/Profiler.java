@@ -30,6 +30,12 @@ public class Profiler extends AbstractActor {
 		return Props.create(Profiler.class);
 	}
 
+	ArrayList<String> crackedPws = new ArrayList<>();
+	ArrayList<String> doneLinCombs = new ArrayList<>();
+	ArrayList<String> doneGeneTasks = new ArrayList<>();
+	ArrayList<String> doneHashingTasks = new ArrayList<>();
+	int amountOfDataPts = 42;
+
 	////////////////////
 	// Actor Messages //
 	////////////////////
@@ -80,9 +86,8 @@ public class Profiler extends AbstractActor {
     @Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class CompletionMessage implements Serializable {
 		private static final long serialVersionUID = -6823011111281387872L;
-		public enum status {MINIMAL, EXTENDABLE, FALSE, FAILED}
 		private CompletionMessage() {}
-		private status result;
+		private String result;
 	}
 	
 	/////////////////
@@ -129,20 +134,26 @@ public class Profiler extends AbstractActor {
 			if (work != null) {
 				this.assign(work);
 			}
-		}		
+		}
 		this.log.info("Unregistered {}", message.getActor());
 	}
 	
 	private void handle(TaskMessage message) {
 		if (this.task1==null){
             this.task1 = message;
-            this.assign(new WorkMessage(new int[0], new int[0]));
+			PWCrackingTaskMessage task = (PWCrackingTaskMessage) message;
+            for (String pw : task.pws){
+				this.assign(new Worker.PWCrackingWorkMessage(pw));
+			}
         } else if (this.task2==null){
             this.task2 = message;
-            this.assign(new WorkMessage(new int[0], new int[0]));
+			GeneTaskMessage task = (GeneTaskMessage) message;
+			for (String gene : task.genes){
+				this.assign(new Worker.GeneWorkMessage(gene));
+			}
         }
 	    if (this.task1 != null && this.task2 != null)
-			this.log.error("The profiler actor can process only one task in its current implementation!");
+			this.log.error("The profiler actor can process only two tasks in its current implementation!");
 
 	}
 	
@@ -150,26 +161,48 @@ public class Profiler extends AbstractActor {
 		ActorRef worker = this.sender();
 		WorkMessage work = this.busyWorkers.remove(worker);
 
-		//TODO: switch CompletionMessage instance of (class name)
 		//if task done => next task
+		if(work instanceof Worker.PWCrackingWorkMessage){
+			//count up amount of done pw cracks
+			crackedPws.add(message.result);
+			if (amountOfDataPts==crackedPws.size()){
+				log.info("finished pw cracking");
+				log.info("starting lin comb");
+				this.task1 = new LinCombTaskMessage(crackedPws);
+			}
 
+		} else if(work instanceof Worker.GeneWorkMessage){
+			//count up amount of done gene
+			doneGeneTasks.add(message.result);
+			if (amountOfDataPts==doneGeneTasks.size()){
+				log.info("finished pw cracking");
+				if (amountOfDataPts == doneLinCombs.size()){
+					log.info("starting hashing task");
+					this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+				}
+			}
 
-		this.log.info("Completed: [{},{}]", Arrays.toString(work.getX()), Arrays.toString(work.getY()));
-		
-		switch (message.getResult()) {
-			case MINIMAL: 
-				this.report(work);
-				break;
-			case EXTENDABLE:
-				this.split(work);
-				break;
-			case FALSE:
-				// Ignore
-				break;
-			case FAILED:
-				this.assign(work);
-				break;
+		} else if(work instanceof Worker.LinCombWorkMessage){
+			//count up amount of done lin combs
+			doneLinCombs.add(message.result);
+			if (amountOfDataPts==doneLinCombs.size()){
+				log.info("finished lin combs");
+				if (amountOfDataPts == doneGeneTasks.size()){
+					log.info("starting hashing task");
+					this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+				}
+			}
+
+		} else if(work instanceof Worker.HashingWorkMessage){
+			//count up amount of done hashings
+			doneHashingTasks.add(message.result);
+			if (amountOfDataPts==doneHashingTasks.size()){
+				log.info("finished hashing - srrf - done with all tasks :)");
+				//this.task1 = new LinCombTaskMessage(doneHashingTasks);
+			}
 		}
+
+		this.log.info("Completed: [{},{}]", message.result);
 		
 		this.assign(worker);
 	}
@@ -197,29 +230,5 @@ public class Profiler extends AbstractActor {
 		this.busyWorkers.put(worker, work);
 		worker.tell(work, this.self());
 	}
-	
-	private void report(WorkMessage work) {
-		this.log.info("UCC: {}", Arrays.toString(work.getX()));
-	}
 
-
-	//TODO: this is not needed
-	private void split(WorkMessage work) {
-		int[] x = work.getX();
-		int[] y = work.getY();
-
-
-		int next = x.length + y.length;
-		log.info(x.length + " " + y.length + " " + this.task1.getAttributes());
-
-		if (next < this.task1.getAttributes() - 1) {
-			int[] xNew = Arrays.copyOf(x, x.length + 1);
-			xNew[x.length] = next;
-			this.assign(new WorkMessage(xNew, y));
-			
-			int[] yNew = Arrays.copyOf(y, y.length + 1);
-			yNew[y.length] = next;
-			this.assign(new WorkMessage(x, yNew));
-		}
-	}
 }

@@ -37,8 +37,37 @@ public class Worker extends AbstractActor {
 	public static class WorkMessage implements Serializable {
 		private static final long serialVersionUID = -7643194361868862395L;
 		private WorkMessage() {}
-		private int[] x;
-		private int[] y;
+/*		private int[] x;
+		private int[] y;*/
+	}
+
+	@Data @AllArgsConstructor @SuppressWarnings("unused")
+	public static class PWCrackingWorkMessage extends WorkMessage  implements Serializable {
+		private static final long serialVersionUID = -6643194361868862395L;
+		private PWCrackingWorkMessage() {}
+		private String pw;
+	}
+
+	@Data @AllArgsConstructor @SuppressWarnings("unused")
+	public static class LinCombWorkMessage extends WorkMessage  implements Serializable {
+		private static final long serialVersionUID = -5643194361868862395L;
+		private LinCombWorkMessage() {}
+		private String pw;
+	}
+
+	@Data @AllArgsConstructor @SuppressWarnings("unused")
+	public static class HashingWorkMessage extends WorkMessage  implements Serializable {
+		private static final long serialVersionUID = -4643194361868862395L;
+		private HashingWorkMessage() {}
+		private String prefix;
+		private String partner;
+	}
+
+	@Data @AllArgsConstructor @SuppressWarnings("unused")
+	public static class GeneWorkMessage extends WorkMessage implements Serializable {
+		private static final long serialVersionUID = -3643194361868862395L;
+		private GeneWorkMessage() {}
+		private String gene;
 	}
 
 	/////////////////
@@ -95,16 +124,27 @@ public class Worker extends AbstractActor {
 	}
 
 	private void handle(WorkMessage message) {
+		String result = "";
+		if(message instanceof PWCrackingWorkMessage){
+			PWCrackingWorkMessage msg = (PWCrackingWorkMessage) message;
+			result = crackPW(msg.pw);
+		} else if(message instanceof GeneWorkMessage){
+			GeneWorkMessage msg = (GeneWorkMessage) message;
+			result = geneTask(msg.gene);
+		} else if(message instanceof HashingWorkMessage){
+			HashingWorkMessage msg = (HashingWorkMessage) message;
+			result = hashTask(msg.partner, msg.prefix);
+		}
+		this.sender().tell(new CompletionMessage(result), this.self());
 
-		this.log.info("message: " + message.x + " " + message.y);
+		/*this.log.info("message: " + message.x + " " + message.y);
 		long y = 0;
 		for (int i = 0; i < 1000000; i++)
 			if (this.isPrime(i))
 				y = y + i;
 		
 		this.log.info("done: " + y);
-		
-		this.sender().tell(new CompletionMessage(CompletionMessage.status.EXTENDABLE), this.self());
+		*/
 	}
 	
 	private boolean isPrime(long n) {
@@ -128,6 +168,14 @@ public class Worker extends AbstractActor {
 
 	private void crackPW(String hash){
 		//TODO: pass
+
+	}
+
+	private void geneTask(String gene){
+
+	}
+
+	private void hashTask(String prefix, String partner){
 
 	}
 }
