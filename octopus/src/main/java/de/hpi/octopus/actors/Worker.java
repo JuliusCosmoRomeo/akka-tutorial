@@ -10,6 +10,7 @@ import akka.cluster.ClusterEvent.MemberUp;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import akka.event.Logging;
+import java.util.ArrayList;
 import akka.event.LoggingAdapter;
 import de.hpi.octopus.OctopusMaster;
 import de.hpi.octopus.actors.Profiler.CompletionMessage;
@@ -18,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import com.google.common.hash.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Random;
 
 public class Worker extends AbstractActor {
 
@@ -48,12 +50,14 @@ public class Worker extends AbstractActor {
 		private static final long serialVersionUID = -6643194361868862395L;
 		private PWCrackingWorkMessage() {}
 		private String pw;
+
 	}
 
 	@Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class LinCombWorkMessage extends WorkMessage  implements Serializable {
 		private static final long serialVersionUID = -5643194361868862395L;
 		private LinCombWorkMessage() {}
+        private ArrayList<String> pws;
 		private String pw;
 	}
 
@@ -61,8 +65,8 @@ public class Worker extends AbstractActor {
 	public static class HashingWorkMessage extends WorkMessage  implements Serializable {
 		private static final long serialVersionUID = -4643194361868862395L;
 		private HashingWorkMessage() {}
-		private String prefix;
 		private String partner;
+		private int prefix;
 	}
 
 	@Data @AllArgsConstructor @SuppressWarnings("unused")
@@ -136,7 +140,10 @@ public class Worker extends AbstractActor {
 		} else if(message instanceof HashingWorkMessage){
 			HashingWorkMessage msg = (HashingWorkMessage) message;
 			result = hashTask(msg.partner, msg.prefix);
-		}
+		} else if(message instanceof LinCombWorkMessage){
+            LinCombWorkMessage msg = (LinCombWorkMessage) message;
+            result = findLinComb(msg.pws, msg.pw);
+        }
         this.log.info("done: " + message.getClass().getName());
 		this.sender().tell(new CompletionMessage(result), this.self());
 
@@ -146,9 +153,7 @@ public class Worker extends AbstractActor {
         String result = "";
 
         for (int i=0;i<1000000;i++){
-            String sha256hex = Hashing.sha256()
-                    .hashString(i+"", StandardCharsets.UTF_8)
-                    .toString();
+            String sha256hex = this.hash((i+""));
             if (sha256hex.equals(hash)){
                 result = i + "";
                 break;
@@ -161,7 +166,38 @@ public class Worker extends AbstractActor {
         return "b";
 	}
 
-	private String hashTask(String prefix, String partner){
-        return "c";
+	private String hash(String input){
+	    return Hashing.sha256()
+                .hashString(input, StandardCharsets.UTF_8)
+                .toString();
+    }
+
+    private String findLinComb(ArrayList<String> pws, String pw){
+		if (Integer.parseInt(pw)<500000){
+	        return -1 + "";
+        } else {
+	        return 1 + "";
+
+        }
+    }
+
+
+	private String hashTask(String partner, int prefix){
+
+        String fullPrefix = "11111";
+        if (prefix==-1){
+            fullPrefix = "00000";
+
+        }
+
+        Random rand = new Random();
+
+        String hash = this.hash(partner);
+        while (!hash.startsWith(fullPrefix)){
+            int nonce = rand.nextInt();
+            hash = this.hash(partner + nonce);
+        }
+		return hash;
+
 	}
 }

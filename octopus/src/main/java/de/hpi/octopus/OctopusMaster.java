@@ -51,7 +51,7 @@ public class OctopusMaster extends OctopusSystem {
 
         //parse input csv file
         try {
-            final Scanner scanner = new Scanner(new File("../data/students.csv"));
+            final Scanner scanner = new Scanner(new File("./data/students.csv"));
             scanner.useDelimiter(";|\n");
 
             //skip header

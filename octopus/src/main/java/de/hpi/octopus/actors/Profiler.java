@@ -31,8 +31,8 @@ public class Profiler extends AbstractActor {
 	}
 
 	ArrayList<String> crackedPws = new ArrayList<>();
-	ArrayList<String> doneLinCombs = new ArrayList<>();
-	ArrayList<String> doneGeneTasks = new ArrayList<>();
+	ArrayList<Integer> prefixes = new ArrayList<>();
+	ArrayList<String> analyzedGenes = new ArrayList<>();
 	ArrayList<String> doneHashingTasks = new ArrayList<>();
 	int amountOfDataPts = 42;
 
@@ -78,7 +78,7 @@ public class Profiler extends AbstractActor {
     public static class HashingTaskMessage extends TaskMessage implements Serializable {
         private static final long serialVersionUID = -4330958742629706627L;
         public HashingTaskMessage() {}
-        private ArrayList<String> prefixes;
+        private ArrayList<Integer> prefixes;
         private ArrayList<String> partners;
     }
 
@@ -154,7 +154,7 @@ public class Profiler extends AbstractActor {
             } else if (message instanceof LinCombTaskMessage){
                 LinCombTaskMessage task = (LinCombTaskMessage) message;
                 for (String pw : task.pws){
-                    this.assign(new Worker.LinCombWorkMessage(pw));
+                    this.assign(new Worker.LinCombWorkMessage(crackedPws, pw));
                 }
             } else if (message instanceof HashingTaskMessage){
                 HashingTaskMessage task = (HashingTaskMessage) message;
@@ -186,7 +186,7 @@ public class Profiler extends AbstractActor {
                 StringBuilder sb = new StringBuilder();
                 for (String s : crackedPws)
                 {
-                    sb.append(s);
+                    sb.append(s + "");
                     sb.append("\t");
                 }
 				log.info(sb.toString());
@@ -195,27 +195,27 @@ public class Profiler extends AbstractActor {
 
 		} else if(work instanceof Worker.GeneWorkMessage){
 			//count up amount of done gene
-			doneGeneTasks.add(message.result);
-			if (amountOfDataPts==doneGeneTasks.size()){
+			analyzedGenes.add(message.result);
+			if (amountOfDataPts== analyzedGenes.size()){
 				log.info("finished gene task");
-				if (amountOfDataPts == doneLinCombs.size()){
+				if (amountOfDataPts == prefixes.size()){
 					log.info("starting hashing task");
-					//this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+					//this.task1 = new HashingTaskMessage(prefixes, analyzedGenes);
                     this.task2 = null;
-                    this.getSelf().tell(new HashingTaskMessage(doneLinCombs, doneGeneTasks), this.getSelf());
+                    this.getSelf().tell(new HashingTaskMessage(prefixes, analyzedGenes), this.getSelf());
 				}
 			}
 
 		} else if(work instanceof Worker.LinCombWorkMessage){
 			//count up amount of done lin combs
-			doneLinCombs.add(message.result);
-			if (amountOfDataPts==doneLinCombs.size()){
+			prefixes.add(Integer.parseInt(message.result));
+			if (amountOfDataPts== prefixes.size()){
 				log.info("finished lin combs");
-				if (amountOfDataPts == doneGeneTasks.size()){
+				if (amountOfDataPts == analyzedGenes.size()){
 					log.info("starting hashing task");
-					//this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+					//this.task1 = new HashingTaskMessage(prefixes, analyzedGenes);
                     this.task1 = null;
-                    this.getSelf().tell(new HashingTaskMessage(doneLinCombs, doneGeneTasks), this.getSelf());
+                    this.getSelf().tell(new HashingTaskMessage(prefixes, analyzedGenes), this.getSelf());
 				}
 			}
 
