@@ -36,7 +36,7 @@ public class Worker extends AbstractActor {
 	@Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class WorkMessage implements Serializable {
 		private static final long serialVersionUID = -7643194361868862395L;
-		private WorkMessage() {}
+		//private WorkMessage() {}
 /*		private int[] x;
 		private int[] y;*/
 	}
@@ -135,6 +135,7 @@ public class Worker extends AbstractActor {
 			HashingWorkMessage msg = (HashingWorkMessage) message;
 			result = hashTask(msg.partner, msg.prefix);
 		}
+        this.log.info("done: " + message.getClass().getName());
 		this.sender().tell(new CompletionMessage(result), this.self());
 
 		/*this.log.info("message: " + message.x + " " + message.y);
@@ -146,36 +147,17 @@ public class Worker extends AbstractActor {
 		this.log.info("done: " + y);
 		*/
 	}
-	
-	private boolean isPrime(long n) {
-		
-		// Check for the most basic primes
-		if (n == 1 || n == 2 || n == 3)
-			return true;
 
-		// Check if n is an even number
-		if (n % 2 == 0)
-			return false;
-
-		// Check the odds
-		for (long i = 3; i * i <= n; i += 2)
-			if (n % i == 0)
-				return false;
-		
-		return true;
-	}
-
-
-	private void crackPW(String hash){
+	private String crackPW(String hash){
 		//TODO: pass
-
+        return "";
 	}
 
-	private void geneTask(String gene){
-
+	private String geneTask(String gene){
+        return "";
 	}
 
-	private void hashTask(String prefix, String partner){
-
+	private String hashTask(String prefix, String partner){
+        return "";
 	}
 }

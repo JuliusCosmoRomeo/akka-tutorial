@@ -175,7 +175,7 @@ public class Profiler extends AbstractActor {
 			//count up amount of done gene
 			doneGeneTasks.add(message.result);
 			if (amountOfDataPts==doneGeneTasks.size()){
-				log.info("finished pw cracking");
+				log.info("finished gene task");
 				if (amountOfDataPts == doneLinCombs.size()){
 					log.info("starting hashing task");
 					this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
@@ -202,8 +202,8 @@ public class Profiler extends AbstractActor {
 			}
 		}
 
-		this.log.info("Completed: [{},{}]", message.result);
-		
+		this.log.info("Completed: ", message.result);
+
 		this.assign(worker);
 	}
 	
