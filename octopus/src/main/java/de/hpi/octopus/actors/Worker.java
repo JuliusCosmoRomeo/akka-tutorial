@@ -16,6 +16,8 @@ import de.hpi.octopus.actors.Profiler.CompletionMessage;
 import de.hpi.octopus.actors.Profiler.RegistrationMessage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import com.google.common.hash.*;
+import java.nio.charset.StandardCharsets;
 
 public class Worker extends AbstractActor {
 
@@ -138,26 +140,28 @@ public class Worker extends AbstractActor {
         this.log.info("done: " + message.getClass().getName());
 		this.sender().tell(new CompletionMessage(result), this.self());
 
-		/*this.log.info("message: " + message.x + " " + message.y);
-		long y = 0;
-		for (int i = 0; i < 1000000; i++)
-			if (this.isPrime(i))
-				y = y + i;
-		
-		this.log.info("done: " + y);
-		*/
 	}
 
 	private String crackPW(String hash){
-		//TODO: pass
-        return "";
+        String result = "";
+
+        for (int i=0;i<1000000;i++){
+            String sha256hex = Hashing.sha256()
+                    .hashString(i+"", StandardCharsets.UTF_8)
+                    .toString();
+            if (sha256hex.equals(hash)){
+                result = i + "";
+                break;
+            }
+        }
+        return result;
 	}
 
 	private String geneTask(String gene){
-        return "";
+        return "b";
 	}
 
 	private String hashTask(String prefix, String partner){
-        return "";
+        return "c";
 	}
 }

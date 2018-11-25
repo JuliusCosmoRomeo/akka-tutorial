@@ -86,7 +86,7 @@ public class Profiler extends AbstractActor {
     @Data @AllArgsConstructor @SuppressWarnings("unused")
 	public static class CompletionMessage implements Serializable {
 		private static final long serialVersionUID = -6823011111281387872L;
-		private CompletionMessage() {}
+		//private CompletionMessage() {}
 		private String result;
 	}
 	
@@ -139,12 +139,29 @@ public class Profiler extends AbstractActor {
 	}
 	
 	private void handle(TaskMessage message) {
+	    log.info("New task message " + message.getClass().getName());
+	    if (this.task1 != null && this.task2 != null){
+			this.log.error("The profiler actor can process only two tasks in its current implementation!");
+	        return;
+        }
 		if (this.task1==null){
             this.task1 = message;
-			PWCrackingTaskMessage task = (PWCrackingTaskMessage) message;
-            for (String pw : task.pws){
-				this.assign(new Worker.PWCrackingWorkMessage(pw));
-			}
+            if (message instanceof PWCrackingTaskMessage){
+                PWCrackingTaskMessage task = (PWCrackingTaskMessage) message;
+                for (String pw : task.pws){
+                    this.assign(new Worker.PWCrackingWorkMessage(pw));
+                }
+            } else if (message instanceof LinCombTaskMessage){
+                LinCombTaskMessage task = (LinCombTaskMessage) message;
+                for (String pw : task.pws){
+                    this.assign(new Worker.LinCombWorkMessage(pw));
+                }
+            } else if (message instanceof HashingTaskMessage){
+                HashingTaskMessage task = (HashingTaskMessage) message;
+                for (int i=0;i<amountOfDataPts;i++){
+                    this.assign(new Worker.HashingWorkMessage(task.partners.get(i), task.prefixes.get(i)));
+                }
+            }
         } else if (this.task2==null){
             this.task2 = message;
 			GeneTaskMessage task = (GeneTaskMessage) message;
@@ -152,9 +169,6 @@ public class Profiler extends AbstractActor {
 				this.assign(new Worker.GeneWorkMessage(gene));
 			}
         }
-	    if (this.task1 != null && this.task2 != null)
-			this.log.error("The profiler actor can process only two tasks in its current implementation!");
-
 	}
 	
 	private void handle(CompletionMessage message) {
@@ -168,7 +182,15 @@ public class Profiler extends AbstractActor {
 			if (amountOfDataPts==crackedPws.size()){
 				log.info("finished pw cracking");
 				log.info("starting lin comb");
-				this.task1 = new LinCombTaskMessage(crackedPws);
+				this.task1 = null;
+                StringBuilder sb = new StringBuilder();
+                for (String s : crackedPws)
+                {
+                    sb.append(s);
+                    sb.append("\t");
+                }
+				log.info(sb.toString());
+				this.getSelf().tell(new LinCombTaskMessage(crackedPws), this.getSelf());
 			}
 
 		} else if(work instanceof Worker.GeneWorkMessage){
@@ -178,7 +200,9 @@ public class Profiler extends AbstractActor {
 				log.info("finished gene task");
 				if (amountOfDataPts == doneLinCombs.size()){
 					log.info("starting hashing task");
-					this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+					//this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+                    this.task2 = null;
+                    this.getSelf().tell(new HashingTaskMessage(doneLinCombs, doneGeneTasks), this.getSelf());
 				}
 			}
 
@@ -189,7 +213,9 @@ public class Profiler extends AbstractActor {
 				log.info("finished lin combs");
 				if (amountOfDataPts == doneGeneTasks.size()){
 					log.info("starting hashing task");
-					this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+					//this.task1 = new HashingTaskMessage(doneLinCombs, doneGeneTasks);
+                    this.task1 = null;
+                    this.getSelf().tell(new HashingTaskMessage(doneLinCombs, doneGeneTasks), this.getSelf());
 				}
 			}
 
@@ -202,7 +228,7 @@ public class Profiler extends AbstractActor {
 			}
 		}
 
-		this.log.info("Completed: ", message.result);
+		this.log.info("Completed: " + message.result);
 
 		this.assign(worker);
 	}
