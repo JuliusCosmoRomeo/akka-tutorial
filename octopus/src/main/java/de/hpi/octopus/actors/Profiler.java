@@ -139,7 +139,7 @@ public class Profiler extends AbstractActor {
 	}
 	
 	private void handle(TaskMessage message) {
-	    log.info("New task message " + message.getClass().getName());
+	    log.info("New task message " + message.getClass().getSimpleName());
 	    if (this.task1 != null && this.task2 != null){
 			this.log.error("The profiler actor can process only two tasks in its current implementation!");
 	        return;
@@ -158,15 +158,15 @@ public class Profiler extends AbstractActor {
                 }
             } else if (message instanceof HashingTaskMessage){
                 HashingTaskMessage task = (HashingTaskMessage) message;
-                for (int i=0;i<amountOfDataPts;i++){
+                for (int i=0;i<task.prefixes.size();i++){
                     this.assign(new Worker.HashingWorkMessage(task.partners.get(i), task.prefixes.get(i)));
                 }
             }
         } else if (this.task2==null){
             this.task2 = message;
 			GeneTaskMessage task = (GeneTaskMessage) message;
-			for (String gene : task.genes){
-				this.assign(new Worker.GeneWorkMessage(gene));
+			for (int i=0;i<task.genes.size();i++){
+				this.assign(new Worker.GeneWorkMessage(i, task.genes));
 			}
         }
 	}
@@ -174,6 +174,7 @@ public class Profiler extends AbstractActor {
 	private void handle(CompletionMessage message) {
 		ActorRef worker = this.sender();
 		WorkMessage work = this.busyWorkers.remove(worker);
+		//this.log.info("Completed: " + message.result);
 
 		//if task done => next task
 		if(work instanceof Worker.PWCrackingWorkMessage){
@@ -183,13 +184,6 @@ public class Profiler extends AbstractActor {
 				log.info("finished pw cracking");
 				log.info("starting lin comb");
 				this.task1 = null;
-                StringBuilder sb = new StringBuilder();
-                for (String s : crackedPws)
-                {
-                    sb.append(s + "");
-                    sb.append("\t");
-                }
-				log.info(sb.toString());
 				this.getSelf().tell(new LinCombTaskMessage(crackedPws), this.getSelf());
 			}
 
@@ -201,7 +195,8 @@ public class Profiler extends AbstractActor {
 				if (amountOfDataPts == prefixes.size()){
 					log.info("starting hashing task");
 					//this.task1 = new HashingTaskMessage(prefixes, analyzedGenes);
-                    this.task2 = null;
+					this.task1 = null;
+					this.task2 = null;
                     this.getSelf().tell(new HashingTaskMessage(prefixes, analyzedGenes), this.getSelf());
 				}
 			}
@@ -215,6 +210,7 @@ public class Profiler extends AbstractActor {
 					log.info("starting hashing task");
 					//this.task1 = new HashingTaskMessage(prefixes, analyzedGenes);
                     this.task1 = null;
+					this.task2 = null;
                     this.getSelf().tell(new HashingTaskMessage(prefixes, analyzedGenes), this.getSelf());
 				}
 			}
@@ -228,7 +224,6 @@ public class Profiler extends AbstractActor {
 			}
 		}
 
-		this.log.info("Completed: " + message.result);
 
 		this.assign(worker);
 	}

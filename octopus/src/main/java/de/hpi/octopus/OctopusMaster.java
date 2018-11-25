@@ -60,7 +60,6 @@ public class OctopusMaster extends OctopusSystem {
             int argCount = 0;
             while(scanner.hasNext()){
                 String next = scanner.next();
-                System.out.println("Next " + next);
                 switch(argCount%4){
                     case 0:
                         ids.add(Integer.parseInt(next));
