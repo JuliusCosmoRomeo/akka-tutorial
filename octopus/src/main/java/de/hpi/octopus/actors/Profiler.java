@@ -136,14 +136,14 @@ public class Profiler extends AbstractActor {
     @Override
     public void postStop() throws Exception {
         super.postStop();
-        this.log().info("Stopped {}.", this.self())
+        log.info("Stopped {}.", this.self());
         //forward pp
 
         for (ActorRef worker : idleWorkers){
-            worker.tell(PoisonPill.getInstance(), ActorRef.noSender())
+            worker.tell(PoisonPill.getInstance(), ActorRef.noSender());
         }
-        for (ActorRef worker : busyWorkers.keys()){
-            this.otherActor.tell(PoisonPill.getInstance(), ActorRef.noSender())
+        for (ActorRef worker : busyWorkers.keySet()){
+            worker.tell(PoisonPill.getInstance(), ActorRef.noSender());
         }
     }
 
@@ -261,6 +261,7 @@ public class Profiler extends AbstractActor {
 		} else if(work instanceof Worker.LinCombWorkMessage){
 			//count up amount of done lin combs
 			if(message.prefixes!=null){
+			    prefixes = new ArrayList<>();
                 StringBuffer sb = new StringBuffer();
 			    for (int prefix : message.prefixes){
                     prefixes.add(prefix);
@@ -291,9 +292,11 @@ public class Profiler extends AbstractActor {
 			//count up amount of done hashings
 			doneHashingTasks.add(message.result);
 			if (amountOfDataPts==doneHashingTasks.size()){
-				log.info("finished hashing - srrf - done with all tasks :)");
+				log.info("finished hashing - nice - done with all tasks :)");
                 log.info("Time since Profiler started " + (System.nanoTime() - startTime)/1000000000);
                 log.info("Accumulated work time " + workTime/1000000000);
+
+                this.getSelf().tell(PoisonPill.getInstance(), ActorRef.noSender());
 			}
 		}
 
@@ -301,7 +304,7 @@ public class Profiler extends AbstractActor {
 		this.assign(worker);
 	}
 
-    private void handlePoisonPill(){
+    /*private void handlePoisonPill(){
         private final Queue<ActorRef> idleWorkers = new LinkedList<>();
         private final Map<ActorRef, WorkMessage> busyWorkers = new HashMap<>();
 
@@ -309,9 +312,9 @@ public class Profiler extends AbstractActor {
             worker.tell(PoisonPill.getInstance(), ActorRef.noSender())
         }
         for (ActorRef worker : busyWorkers.keys()){
-            this.otherActor.tell(PoisonPill.getInstance(), ActorRef.noSender())
+            this.otherActor.tell(PoisonPill.getInstance(), ActorRef.noSender());
         }
-    }
+    }*/
 
 	private void assign(WorkMessage work) {
 		ActorRef worker = this.idleWorkers.poll();

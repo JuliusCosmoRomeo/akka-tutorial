@@ -103,7 +103,7 @@ public class Worker extends AbstractActor {
         super.postStop();
         this.cluster.unsubscribe(this.self());
         // Log the stop event
-        this.log().info("Stopped {}.", this.getSelf());
+        this.log.info("Stopped {}.", this.getSelf());
     }
 
 	////////////////////
@@ -259,7 +259,7 @@ public class Worker extends AbstractActor {
         throw new RuntimeException("Prefix not found!");
     }
 
-    private int[] findLinComb(ArrayList<Integer> pws, long start, long end){
+    /*private int[] findLinComb(ArrayList<Integer> pws, long start, long end){
         log.info("range " + start + " " + end);
 	    if (end < start){
 	        long temp = end;
@@ -293,7 +293,7 @@ public class Worker extends AbstractActor {
         return null;
         //throw new RuntimeException("Prefix not found!");
     }
-
+*/
     private int sum(ArrayList<Integer> numbers, int[] prefixes) {
         int sum = 0;
         for (int i = 0; i < numbers.size(); i++)
@@ -308,14 +308,18 @@ public class Worker extends AbstractActor {
                 .toString();
     }
 
-/*    private String findLinComb(ArrayList<String> pws, String binary){
-		if (Integer.parseInt(binary)<500000){
-	        return -1 + "";
-        } else {
-	        return 1 + "";
-
+    private int[] findLinComb(ArrayList<Integer> pws, long start, long end){
+		int[] prefixes = new int[42];
+		for (int i=0;i<pws.size(); i++){
+		    if (pws.get(i) <500000){
+		        prefixes[i] = 1;
+            } else {
+                prefixes[i] = -1;
+            }
         }
-    }*/
+        return prefixes;
+
+    }
 
 
 	private String hashTask(String partner, int prefix){

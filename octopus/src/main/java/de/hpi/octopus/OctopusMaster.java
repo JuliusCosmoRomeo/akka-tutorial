@@ -10,6 +10,7 @@ import akka.actor.ActorSystem;
 import akka.cluster.Cluster;
 import de.hpi.octopus.actors.Profiler;
 import de.hpi.octopus.actors.Worker;
+import de.hpi.octopus.actors.Reaper;
 import de.hpi.octopus.actors.listeners.ClusterListener;
 
 public class OctopusMaster extends OctopusSystem {
@@ -29,7 +30,8 @@ public class OctopusMaster extends OctopusSystem {
 			//	system.actorOf(MetricsListener.props(), MetricsListener.DEFAULT_NAME);
 
 				system.actorOf(Profiler.props(), Profiler.DEFAULT_NAME);
-				
+
+                system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
 				for (int i = 0; i < workers; i++)
 					system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
 				
