@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Collections;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -17,6 +18,8 @@ import akka.event.LoggingAdapter;
 import de.hpi.octopus.actors.Worker.WorkMessage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import akka.actor.PoisonPill;
+
 
 public class Profiler extends AbstractActor {
 
@@ -30,11 +33,24 @@ public class Profiler extends AbstractActor {
 		return Props.create(Profiler.class);
 	}
 
+	int amountOfDataPts = 42;
+
 	ArrayList<String> crackedPws = new ArrayList<>();
+	ArrayList<Integer> pws = new ArrayList<>();
 	ArrayList<Integer> prefixes = new ArrayList<>();
 	ArrayList<String> analyzedGenes = new ArrayList<>();
 	ArrayList<String> doneHashingTasks = new ArrayList<>();
-	int amountOfDataPts = 42;
+
+    long startTime = System.nanoTime();
+    long workTime = 0;
+
+    long maxLinCombValue = Long.MAX_VALUE;
+    //long currentLinCombValue = 0;
+    int batchSize = 10000;
+    int searchDirection = 1;
+    int searchCount = 0;
+
+
 
 	////////////////////
 	// Actor Messages //
@@ -71,7 +87,7 @@ public class Profiler extends AbstractActor {
     public static class LinCombTaskMessage extends TaskMessage implements Serializable {
         private static final long serialVersionUID = -5330958742629706627L;
         public LinCombTaskMessage() {}
-        private ArrayList<String> pws;
+        private ArrayList<Integer> pws;
     }
 
     @Data @AllArgsConstructor @SuppressWarnings("unused")
@@ -88,6 +104,8 @@ public class Profiler extends AbstractActor {
 		private static final long serialVersionUID = -6823011111281387872L;
 		//private CompletionMessage() {}
 		private String result;
+		private int[] prefixes;
+		private long duration;
 	}
 	
 	/////////////////
@@ -107,8 +125,29 @@ public class Profiler extends AbstractActor {
 	////////////////////
 	// Actor Behavior //
 	////////////////////
-	
-	@Override
+
+    @Override
+    public void preStart() throws Exception {
+        super.preStart();
+        //reaper register
+        Reaper.watchWithDefaultReaper(this);
+    }
+
+    @Override
+    public void postStop() throws Exception {
+        super.postStop();
+        this.log().info("Stopped {}.", this.self())
+        //forward pp
+
+        for (ActorRef worker : idleWorkers){
+            worker.tell(PoisonPill.getInstance(), ActorRef.noSender())
+        }
+        for (ActorRef worker : busyWorkers.keys()){
+            this.otherActor.tell(PoisonPill.getInstance(), ActorRef.noSender())
+        }
+    }
+
+    @Override
 	public Receive createReceive() {
 		return receiveBuilder()
 				.match(RegistrationMessage.class, this::handle)
@@ -147,14 +186,28 @@ public class Profiler extends AbstractActor {
 		if (this.task1==null){
             this.task1 = message;
             if (message instanceof PWCrackingTaskMessage){
+                startTime = System.nanoTime();
                 PWCrackingTaskMessage task = (PWCrackingTaskMessage) message;
                 for (String pw : task.pws){
                     this.assign(new Worker.PWCrackingWorkMessage(pw));
                 }
             } else if (message instanceof LinCombTaskMessage){
                 LinCombTaskMessage task = (LinCombTaskMessage) message;
-                for (String pw : task.pws){
-                    this.assign(new Worker.LinCombWorkMessage(crackedPws, pw));
+                //for (int pw : task.pws){
+                    //add some work chunks already - add more when done with a piece of work
+                    //while(currentLinCombValue<50) {
+                        //String binary = Long.toBinaryString(currentLinCombValue);
+                        //currentLinCombValue++;
+                for (int i=0;i<50;i++){
+                    long start = maxLinCombValue/2 + (searchDirection * searchCount * batchSize);
+                    long end = start + (searchDirection * batchSize);
+                    this.assign(new Worker.LinCombWorkMessage(pws, start, end));
+
+                    if (searchDirection<0){
+                        searchCount ++;
+                    }
+                    searchDirection *= -1;
+
                 }
             } else if (message instanceof HashingTaskMessage){
                 HashingTaskMessage task = (HashingTaskMessage) message;
@@ -175,6 +228,7 @@ public class Profiler extends AbstractActor {
 		ActorRef worker = this.sender();
 		WorkMessage work = this.busyWorkers.remove(worker);
 		//this.log.info("Completed: " + message.result);
+        this.workTime += message.duration;
 
 		//if task done => next task
 		if(work instanceof Worker.PWCrackingWorkMessage){
@@ -184,7 +238,11 @@ public class Profiler extends AbstractActor {
 				log.info("finished pw cracking");
 				log.info("starting lin comb");
 				this.task1 = null;
-				this.getSelf().tell(new LinCombTaskMessage(crackedPws), this.getSelf());
+				for (String pw : crackedPws){
+				    pws.add(Integer.parseInt(pw));
+                }
+                this.getSelf().tell(new LinCombTaskMessage(pws), this.getSelf());
+
 			}
 
 		} else if(work instanceof Worker.GeneWorkMessage){
@@ -200,46 +258,73 @@ public class Profiler extends AbstractActor {
                     this.getSelf().tell(new HashingTaskMessage(prefixes, analyzedGenes), this.getSelf());
 				}
 			}
-
 		} else if(work instanceof Worker.LinCombWorkMessage){
 			//count up amount of done lin combs
-			prefixes.add(Integer.parseInt(message.result));
-			if (amountOfDataPts== prefixes.size()){
-				log.info("finished lin combs");
-				if (amountOfDataPts == analyzedGenes.size()){
-					log.info("starting hashing task");
-					//this.task1 = new HashingTaskMessage(prefixes, analyzedGenes);
+			if(message.prefixes!=null){
+                StringBuffer sb = new StringBuffer();
+			    for (int prefix : message.prefixes){
+                    prefixes.add(prefix);
+                    sb.append(prefix + "\t");
+                }
+
+                log.info("finished lin combs " + sb.toString());
+                if (amountOfDataPts == analyzedGenes.size()){
+                    log.info("starting hashing task");
+                    //this.task1 = new HashingTaskMessage(prefixes, analyzedGenes);
                     this.task1 = null;
-					this.task2 = null;
+                    this.task2 = null;
                     this.getSelf().tell(new HashingTaskMessage(prefixes, analyzedGenes), this.getSelf());
-				}
-			}
+                }
+            } else {
+                long start = maxLinCombValue/2 + (searchDirection * searchCount * batchSize);
+                long end = start + (searchDirection * batchSize);
+                this.assign(new Worker.LinCombWorkMessage(pws, start, end));
+
+                if (searchDirection<0){
+                    searchCount ++;
+                }
+                searchDirection *= -1;
+
+            }
 
 		} else if(work instanceof Worker.HashingWorkMessage){
 			//count up amount of done hashings
 			doneHashingTasks.add(message.result);
 			if (amountOfDataPts==doneHashingTasks.size()){
 				log.info("finished hashing - srrf - done with all tasks :)");
-				//this.task1 = new LinCombTaskMessage(doneHashingTasks);
+                log.info("Time since Profiler started " + (System.nanoTime() - startTime)/1000000000);
+                log.info("Accumulated work time " + workTime/1000000000);
 			}
 		}
 
 
 		this.assign(worker);
 	}
-	
+
+    private void handlePoisonPill(){
+        private final Queue<ActorRef> idleWorkers = new LinkedList<>();
+        private final Map<ActorRef, WorkMessage> busyWorkers = new HashMap<>();
+
+        for (ActorRef worker : idleWorkers){
+            worker.tell(PoisonPill.getInstance(), ActorRef.noSender())
+        }
+        for (ActorRef worker : busyWorkers.keys()){
+            this.otherActor.tell(PoisonPill.getInstance(), ActorRef.noSender())
+        }
+    }
+
 	private void assign(WorkMessage work) {
 		ActorRef worker = this.idleWorkers.poll();
-		
+
 		if (worker == null) {
 			this.unassignedWork.add(work);
 			return;
 		}
-		
+
 		this.busyWorkers.put(worker, work);
 		worker.tell(work, this.self());
 	}
-	
+
 	private void assign(ActorRef worker) {
 		WorkMessage work = this.unassignedWork.poll();
 		

@@ -58,8 +58,9 @@ public class Worker extends AbstractActor {
 	public static class LinCombWorkMessage extends WorkMessage  implements Serializable {
 		private static final long serialVersionUID = -5643194361868862395L;
 		private LinCombWorkMessage() {}
-        private ArrayList<String> pws;
-		private String pw;
+        private ArrayList<Integer> pws;
+		private long start;
+        private long end;
 	}
 
 	@Data @AllArgsConstructor @SuppressWarnings("unused")
@@ -88,16 +89,22 @@ public class Worker extends AbstractActor {
 	/////////////////////
 	// Actor Lifecycle //
 	/////////////////////
-	
-	@Override
-	public void preStart() {
-		this.cluster.subscribe(this.self(), MemberUp.class);
-	}
 
-	@Override
-	public void postStop() {
-		this.cluster.unsubscribe(this.self());
-	}
+    @Override
+    public void preStart() throws Exception {
+        super.preStart();
+        this.cluster.subscribe(this.self(), MemberUp.class);
+        // Register at this actor system's reaper
+        Reaper.watchWithDefaultReaper(this);
+    }
+
+    @Override
+    public void postStop() throws Exception {
+        super.postStop();
+        this.cluster.unsubscribe(this.self());
+        // Log the stop event
+        this.log().info("Stopped {}.", this.getSelf());
+    }
 
 	////////////////////
 	// Actor Behavior //
@@ -132,6 +139,7 @@ public class Worker extends AbstractActor {
 	}
 
 	private void handle(WorkMessage message) {
+	    long startTime = System.nanoTime();
 		String result = "";
 		if(message instanceof PWCrackingWorkMessage){
 			PWCrackingWorkMessage msg = (PWCrackingWorkMessage) message;
@@ -144,10 +152,18 @@ public class Worker extends AbstractActor {
 			result = hashTask(msg.partner, msg.prefix);
 		} else if(message instanceof LinCombWorkMessage){
             LinCombWorkMessage msg = (LinCombWorkMessage) message;
-            result = findLinComb(msg.pws, msg.pw);
+            int[] prefixes = findLinComb(msg.pws, msg.start, msg.end);
+            if (prefixes!=null){
+                this.log.info("FOUND A LIN COMB! " + msg.start + " " + msg.end);
+                this.sender().tell(new CompletionMessage(result, prefixes, System.nanoTime()-startTime), this.self());
+            } else {
+                this.log.info("no lin comb found bw: " + msg.start + " " + msg.end);
+                this.sender().tell(new CompletionMessage(result, null, System.nanoTime()-startTime), this.self());
+            }
+            return;
         }
         this.log.info("done: " + message.getClass().getSimpleName() + " " + result);
-		this.sender().tell(new CompletionMessage(result), this.self());
+		this.sender().tell(new CompletionMessage(result, null, System.nanoTime()-startTime), this.self());
 
 	}
 
@@ -221,9 +237,70 @@ public class Worker extends AbstractActor {
     }
 
 
-    private String geneTask(String gene){
-        return "b";
-	}
+    private int[] solve(ArrayList<Integer> pws) {
+        for (long a = 0; a < Long.MAX_VALUE; a++) {
+            String binary = Long.toBinaryString(a);
+
+            int[] prefixes = new int[62];
+            for (int i = 0; i < prefixes.length; i++)
+                prefixes[i] = 1;
+
+            int i = 0;
+            for (int j = binary.length() - 1; j >= 0; j--) {
+                if (binary.charAt(j) == '1')
+                    prefixes[i] = -1;
+                i++;
+            }
+
+            if (this.sum(pws, prefixes) == 0)
+                return prefixes;
+        }
+
+        throw new RuntimeException("Prefix not found!");
+    }
+
+    private int[] findLinComb(ArrayList<Integer> pws, long start, long end){
+        log.info("range " + start + " " + end);
+	    if (end < start){
+	        long temp = end;
+	        end = start;
+	        start = temp;
+        }
+        for (long a = start; a < end; a++){
+
+            String binary = Long.toBinaryString(a);
+            int[] prefixes = new int[100];
+            for (int i = 0; i < prefixes.length; i++)
+                prefixes[i] = 1;
+
+            int i = 0;
+            for (int j = binary.length() - 1; j >= 0; j--) {
+                if (binary.charAt(j) == '1'){
+                    prefixes[i] = -1;
+                    System.out.print(1+"");
+                } else {
+                    System.out.print(0+"");
+                }
+                i++;
+            }
+            System.out.println("");
+
+            log.info(binary);
+            if (this.sum(pws, prefixes) == 0)
+                return prefixes;
+        }
+
+        return null;
+        //throw new RuntimeException("Prefix not found!");
+    }
+
+    private int sum(ArrayList<Integer> numbers, int[] prefixes) {
+        int sum = 0;
+        for (int i = 0; i < numbers.size(); i++)
+            sum += numbers.get(i) * prefixes[i];
+        log.info("sum " +  sum);
+        return sum;
+    }
 
 	private String hash(String input){
 	    return Hashing.sha256()
@@ -231,14 +308,14 @@ public class Worker extends AbstractActor {
                 .toString();
     }
 
-    private String findLinComb(ArrayList<String> pws, String pw){
-		if (Integer.parseInt(pw)<500000){
+/*    private String findLinComb(ArrayList<String> pws, String binary){
+		if (Integer.parseInt(binary)<500000){
 	        return -1 + "";
         } else {
 	        return 1 + "";
 
         }
-    }
+    }*/
 
 
 	private String hashTask(String partner, int prefix){
@@ -246,7 +323,6 @@ public class Worker extends AbstractActor {
         String fullPrefix = "11111";
         if (prefix==-1){
             fullPrefix = "00000";
-
         }
 
         Random rand = new Random();
